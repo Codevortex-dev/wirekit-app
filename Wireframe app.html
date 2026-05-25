@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WireKit — Mobile Wireframing</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --bg: #f0ede8;
+    --surface: #faf8f5;
+    --border: #d6d0c8;
+    --text: #1a1814;
+    --text-muted: #7a7570;
+    --accent: #2a2520;
+    --wire: #c8c2b8;
+    --wire-dark: #9a948a;
+    --selected: #3d6b8c;
+    --selected-light: #d4e8f5;
+    --panel-w: 220px;
+    --toolbar-h: 52px;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+
+  /* TOOLBAR */
+  #toolbar {
+    height: var(--toolbar-h);
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #3a3530;
+  }
+
+  #toolbar .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    color: #f0ede8;
+    letter-spacing: -0.02em;
+    margin-right: 8px;
+  }
+
+  #toolbar .sep { width: 1px; height: 24px; background: #4a4540; margin: 0 4px; }
+
+  .tool-btn {
+    width: 36px; height: 36px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: #c0bab4;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .tool-btn:hover { background: #3a3530; color: #f0ede8; }
+  .tool-btn.active { background: #4a6a84; color: #d4e8f5; border-color: #5a7a94; }
+  .tool-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%; transform: translateX(-50%);
+    background: #1a1814;
+    color: #f0ede8;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  .toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .btn-export {
+    background: #f0ede8; color: #1a1814;
+    border: none; border-radius: 6px;
+    padding: 6px 14px; font-size: 13px; font-weight: 600;
+    font-family: 'Syne', sans-serif;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-export:hover { opacity: 0.85; }
+
+  /* MAIN LAYOUT */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* LEFT PANEL */
+  #panel-left {
+    width: var(--panel-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .panel-section { padding: 12px; border-bottom: 1px solid var(--border); }
+  .panel-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .component-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .comp-item {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    padding: 8px 6px 6px;
+    cursor: grab;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .comp-item:hover { border-color: var(--selected); background: var(--selected-light); }
+  .comp-item:active { cursor: grabbing; opacity: 0.7; }
+
+  .comp-preview {
+    width: 100%;
+    height: 38px;
+    border-radius: 4px;
+    background: var(--wire);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--wire-dark);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .comp-name {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* CANVAS AREA */
+  #canvas-wrap {
+    flex: 1;
+    overflow: auto;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle, #c8c2b8 1px, transparent 1px);
+    background-size: 20px 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+  }
+
+  #phone-frame {
+    width: 375px;
+    min-height: 812px;
+    background: white;
+    border-radius: 40px;
+    border: 3px solid var(--accent);
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(255,255,255,0.8);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  /* phone notch */
+  #phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: var(--accent);
+    border-radius: 0 0 16px 16px;
+    z-index: 10;
+  }
+
+  #canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* WIRE ELEMENTS */
+  .wire-el {
+    position: absolute;
+    border: 1.5px solid var(--wire-dark);
+    background: white;
+    border-radius: 4px;
+    cursor: move;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--wire-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: box-shadow 0.1s;
+    overflow: hidden;
+  }
+  .wire-el:hover { box-shadow: 0 0 0 2px var(--selected); }
+  .wire-el.selected { box-shadow: 0 0 0 2px var(--selected); border-color: var(--selected); }
+
+  .wire-el .resize-handle {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 12px; height: 12px;
+    cursor: se-resize;
+    background: linear-gradient(135deg, transparent 50%, var(--wire-dark) 50%);
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .wire-el.selected .resize-handle,
+  .wire-el:hover .resize-handle { opacity: 1; }
+
+  .wire-el .del-btn {
+    position: absolute;
+    top: -8px; right: -8px;
+    width: 16px; height: 16px;
+    background: #e24b4a;
+    color: white;
+    border-radius: 50%;
+    font-size: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: sans-serif;
+    line-height: 1;
+    z-index: 5;
+  }
+  .wire-el.selected .del-btn { display: flex; }
+
+  /* element type styles */
+  .el-navbar {
+    background: var(--wire);
+    border-color: var(--wire-dark);
+    flex-direction: row;
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .el-navbar::before { content: '≡'; font-size: 16px; }
+  .el-navbar::after { content: 'App Title'; margin-left: auto; }
+
+  .el-image {
+    background: var(--wire);
+    border-color: var(--wire-dark);
+    flex-direction: column;
+    gap: 4px;
+  }
+  .el-image::before { content: '⬡'; font-size: 24px; color: var(--wire-dark); }
+  .el-image::after { content: 'Image'; font-size: 10px; }
+
+  .el-text { padding: 8px; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 4px; }
+
+  .el-button {
+    background: var(--wire);
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .el-input {
+    background: #faf8f5;
+    border-color: var(--wire-dark);
+    justify-content: flex-start;
+    padding: 0 10px;
+    font-size: 11px;
+    color: #b0a89e;
+  }
+  .el-input::before { content: 'Placeholder text...'; }
+
+  .el-card {
+    background: #faf8f5;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .el-tabbar {
+    background: var(--wire);
+    border-color: var(--wire-dark);
+    flex-direction: row;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .el-divider {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid var(--wire);
+    border-radius: 0;
+    height: 1px !important;
+  }
+
+  .el-avatar {
+    border-radius: 50%;
+    background: var(--wire);
+    border-color: var(--wire-dark);
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 18px;
+  }
+  .el-avatar::before { content: '👤'; }
+
+  .el-list { flex-direction: column; align-items: flex-start; justify-content: flex-start; padding: 8px; gap: 6px; }
+
+  /* RIGHT PANEL */
+  #panel-right {
+    width: 200px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .prop-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .prop-label { font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+  .prop-input {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    width: 100%;
+  }
+  .prop-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+
+  #no-selection {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    line-height: 1.6;
+  }
+
+  /* LAYERS */
+  .layer-item {
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .layer-item:hover { background: var(--bg); }
+  .layer-item.selected { background: var(--selected-light); color: var(--selected); }
+  .layer-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--wire-dark); flex-shrink: 0; }
+
+  /* Status */
+  #status {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #c0bab4;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 4px 12px;
+    border-radius: 100px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 999;
+  }
+  #status.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="logo">WireKit</span>
+  <div class="sep"></div>
+  <button class="tool-btn active" id="tool-select" title="Select (V)">&#9654;</button>
+  <button class="tool-btn" id="tool-text" title="Text (T)">T</button>
+  <button class="tool-btn" id="tool-rect" title="Rectangle (R)">&#9633;</button>
+  <div class="sep"></div>
+  <button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)">&#8617;</button>
+  <button class="tool-btn" id="btn-delete" title="Delete selected">&#128465;</button>
+  <button class="tool-btn" id="btn-duplicate" title="Duplicate (Ctrl+D)">&#9633;&#9633;</button>
+  <div class="toolbar-right">
+    <button class="btn-export" id="btn-export">Export PNG</button>
+  </div>
+</div>
+
+<div id="main">
+
+  <!-- LEFT PANEL: Components -->
+  <div id="panel-left">
+    <div class="panel-section">
+      <div class="panel-label">Navigation</div>
+      <div class="component-grid">
+        <div class="comp-item" draggable="true" data-type="navbar">
+          <div class="comp-preview" style="flex-direction:row;gap:4px;padding:0 6px;">
+            <span style="font-size:12px;">≡</span>
+            <span style="flex:1;text-align:center;">Title</span>
+          </div>
+          <span class="comp-name">Nav Bar</span>
+        </div>
+        <div class="comp-item" draggable="true" data-type="tabbar">
+          <div class="comp-preview" style="flex-direction:row;overflow:hidden;">
+            <span style="flex:1;text-align:center;border-right:1px solid #b0a89e;">⌂</span>
+            <span style="flex:1;text-align:center;border-right:1px solid #b0a89e;">♡</span>
+            <span style="flex:1;text-align:center;">⊕</span>
+          </div>
+          <span class="comp-name">Tab Bar</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Content</div>
+      <div class="component-grid">
+        <div class="comp-item" draggable="true" data-type="image">
+          <div class="comp-preview">
+            <span style="font-size:20px;">⬡</span>
+          </div>
+          <span class="comp-name">Image</span>
+        </div>
+        <div class="comp-item" draggable="true" data-type="card">
+          <div class="comp-preview" style="background:#faf8f5;border:1px solid #c8c2b8;border-radius:4px;flex-direction:column;gap:2px;padding:4px;">
+            <div style="width:60%;height:6px;background:#c8c2b8;border-radius:2px;"></div>
+            <div style="width:100%;height:4px;background:#e0dbd4;border-radius:2px;"></div>
+            <div style="width:80%;height:4px;background:#e0dbd4;border-radius:2px;"></div>
+          </div>
+          <span class="comp-name">Card</span>
+        </div>
+        <div class="comp-item" draggable="true" data-type="text">
+          <div class="comp-preview" style="flex-direction:column;align-items:flex-start;gap:3px;padding:4px;">
+            <div style="width:70%;height:6px;background:#9a948a;border-radius:2px;"></div>
+            <div style="width:100%;height:4px;background:#c8c2b8;border-radius:2px;"></div>
+            <div style="width:85%;height:4px;background:#c8c2b8;border-radius:2px;"></div>
+          </div>
+          <span class="comp-name">Text</span>
+        </div>
+        <div class="comp-item" draggable="true" data-type="list">
+          <div class="comp-preview" style="flex-direction:column;align-items:flex-start;gap:3px;padding:4px;">
+            <div style="display:flex;align-items:center;gap:3px;width:100%"><div style="width:4px;height:4px;border-radius:50%;background:#9a948a;"></div><div style="flex:1;height:4px;background:#c8c2b8;border-radius:2px;"></div></div>
+            <div style="display:flex;align-items:center;gap:3px;width:100%"><div style="width:4px;height:4px;border-radius:50%;background:#9a948a;"></div><div style="flex:1;height:4px;background:#c8c2b8;border-radius:2px;"></div></div>
+            <div style="display:flex;align-items:center;gap:3px;width:100%"><div style="width:4px;height:4px;border-radius:50%;background:#9a948a;"></div><div style="flex:1;height:4px;background:#c8c2b8;border-radius:2px;"></div></div>
+          </div>
+          <span class="comp-name">List</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Inputs</div>
+      <div class="component-grid">
+        <div class="comp-item" draggable="true" data-type="button">
+          <div class="comp-preview" style="background:#c8c2b8;border-radius:6px;font-weight:600;">Button</div>
+          <span class="comp-name">Button</span>
+        </div>
+        <div class="comp-item" draggable="true" data-type="input">
+          <div class="comp-preview" style="background:#faf8f5;border:1px solid #c8c2b8;border-radius:4px;justify-content:flex-start;padding:0 6px;font-size:9px;color:#b0a89e;">Input...</div>
+          <span class="comp-name">Input</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Misc</div>
+      <div class="component-grid">
+        <div class="comp-item" draggable="true" data-type="avatar">
+          <div class="comp-preview" style="background:#c8c2b8;border-radius:50%;width:32px;height:32px;font-size:16px;margin:0 auto;">👤</div>
+          <span class="comp-name">Avatar</span>
+        </div>
+        <div class="comp-item" draggable="true" data-type="divider">
+          <div class="comp-preview" style="flex-direction:column;justify-content:center;">
+            <div style="width:100%;height:1px;background:#9a948a;"></div>
+          </div>
+          <span class="comp-name">Divider</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section" style="border-bottom:none;">
+      <div class="panel-label">Layers</div>
+      <div id="layers-list"></div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="phone-frame">
+      <div id="canvas"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Properties -->
+  <div id="panel-right">
+    <div class="panel-section" style="border-bottom:none;">
+      <div class="panel-label">Properties</div>
+    </div>
+    <div id="props-content">
+      <div id="no-selection">Select an element to edit its properties</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="status"></div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const phoneFrame = document.getElementById('phone-frame');
+const layersList = document.getElementById('layers-list');
+const propsContent = document.getElementById('props-content');
+const statusEl = document.getElementById('status');
+
+let elements = [];
+let selectedId = null;
+let idCounter = 0;
+let history = [];
+let currentTool = 'select';
+let draggingEl = null;
+let dragOffsetX = 0, dragOffsetY = 0;
+let resizing = null;
+let resizeStartX, resizeStartY, resizeStartW, resizeStartH;
+
+function uid() { return 'el_' + (++idCounter); }
+
+function showStatus(msg) {
+  statusEl.textContent = msg;
+  statusEl.classList.add('show');
+  setTimeout(() => statusEl.classList.remove('show'), 1800);
+}
+
+function saveHistory() {
+  history.push(JSON.stringify(elements));
+  if (history.length > 40) history.shift();
+}
+
+function undo() {
+  if (!history.length) return;
+  elements = JSON.parse(history.pop());
+  renderAll();
+  showStatus('Undone');
+}
+
+const defaults = {
+  navbar:  { w: 375, h: 52, label: 'Nav Bar', x: 0, y: 30 },
+  tabbar:  { w: 375, h: 60, label: 'Tab Bar', x: 0, y: 752 },
+  image:   { w: 335, h: 180, label: 'Image',   x: 20, y: 150 },
+  card:    { w: 335, h: 100, label: 'Card',    x: 20, y: 200 },
+  text:    { w: 300, h: 60,  label: 'Text',    x: 20, y: 200 },
+  button:  { w: 220, h: 44,  label: 'Button',  x: 77, y: 300 },
+  input:   { w: 300, h: 44,  label: 'Input',   x: 37, y: 300 },
+  avatar:  { w: 48,  h: 48,  label: 'Avatar',  x: 163,y: 200 },
+  divider: { w: 335, h: 1,   label: 'Divider', x: 20, y: 200 },
+  list:    { w: 335, h: 120, label: 'List',    x: 20, y: 200 },
+  rect:    { w: 200, h: 100, label: 'Rect',    x: 87, y: 300 },
+};
+
+function addElement(type, x, y) {
+  saveHistory();
+  const d = defaults[type] || defaults.rect;
+  const el = {
+    id: uid(),
+    type,
+    x: x !== undefined ? x : d.x,
+    y: y !== undefined ? y : d.y,
+    w: d.w, h: d.h,
+    label: d.label,
+    fontSize: 13,
+    textColor: '#9a948a',
+    bgColor: '',
+  };
+  elements.push(el);
+  renderAll();
+  selectElement(el.id);
+}
+
+function renderAll() {
+  canvas.innerHTML = '';
+  layersList.innerHTML = '';
+  elements.forEach(el => {
+    renderElement(el);
+    renderLayer(el);
+  });
+  updateProps();
+}
+
+function renderElement(el) {
+  const div = document.createElement('div');
+  div.className = 'wire-el el-' + el.type;
+  if (el.id === selectedId) div.classList.add('selected');
+  div.dataset.id = el.id;
+  div.style.left = el.x + 'px';
+  div.style.top = el.y + 'px';
+  div.style.width = el.w + 'px';
+  div.style.height = (el.type === 'divider' ? 2 : el.h) + 'px';
+  if (el.bgColor) div.style.background = el.bgColor;
+  if (el.textColor) div.style.color = el.textColor;
+  if (el.fontSize) div.style.fontSize = el.fontSize + 'px';
+
+  if (el.type === 'text') {
+    div.innerHTML = `<div style="font-weight:600;font-size:${el.fontSize+1}px;color:#3a3530;margin-bottom:4px;">${el.label}</div><div style="font-size:11px;line-height:1.5;">Body text goes here for your wireframe layout.</div>`;
+  } else if (el.type === 'list') {
+    div.innerHTML = ['Item One', 'Item Two', 'Item Three'].map(t =>
+      `<div style="display:flex;align-items:center;gap:6px;width:100%;padding:2px 0;"><div style="width:5px;height:5px;border-radius:50%;background:#9a948a;flex-shrink:0;"></div><div style="flex:1;height:8px;background:#e0dbd4;border-radius:3px;"></div></div>`
+    ).join('');
+  } else if (el.type === 'navbar') {
+    div.innerHTML = `<span style="font-size:18px;opacity:0.7;">≡</span><span style="flex:1;text-align:center;font-size:13px;font-weight:600;color:#3a3530;">${el.label}</span><span style="font-size:15px;opacity:0.5;">⋯</span>`;
+    div.style.flexDirection = 'row';
+    div.style.padding = '0 14px';
+    div.style.gap = '8px';
+  } else if (el.type === 'tabbar') {
+    const tabs = ['⌂ Home','♡ Saved','⊕ New','☰ Menu'];
+    div.innerHTML = tabs.map((t,i) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;gap:2px;border-right:${i<3?'1px solid #c8c2b8':'none'};height:100%;">${t}</div>`).join('');
+    div.style.flexDirection = 'row';
+    div.style.padding = '0';
+    div.style.gap = '0';
+  } else if (el.type === 'card') {
+    div.innerHTML = `<div style="padding:12px;width:100%;"><div style="height:10px;background:#c8c2b8;border-radius:3px;margin-bottom:8px;width:60%;"></div><div style="height:7px;background:#e0dbd4;border-radius:3px;margin-bottom:5px;"></div><div style="height:7px;background:#e0dbd4;border-radius:3px;width:80%;"></div></div>`;
+    div.style.flexDirection = 'column';
+    div.style.alignItems = 'flex-start';
+    div.style.justifyContent = 'flex-start';
+  } else if (el.type === 'button') {
+    div.textContent = el.label;
+    div.style.fontWeight = '600';
+    div.style.background = el.bgColor || '#c8c2b8';
+    div.style.borderRadius = '8px';
+  } else if (el.type === 'input') {
+    div.innerHTML = `<span style="color:#b0a89e;font-size:11px;">${el.label}...</span>`;
+    div.style.justifyContent = 'flex-start';
+    div.style.padding = '0 12px';
+    div.style.background = el.bgColor || '#faf8f5';
+    div.style.borderRadius = '8px';
+  } else if (el.type === 'image') {
+    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="font-size:28px;opacity:0.4;">⬡</div><div style="font-size:10px;">Image Placeholder</div></div>`;
+    div.style.background = el.bgColor || '#e8e2d8';
+  } else if (el.type === 'avatar') {
+    div.style.borderRadius = '50%';
+    div.style.fontSize = '22px';
+    div.style.background = el.bgColor || '#c8c2b8';
+    div.textContent = '👤';
+  } else if (el.type === 'divider') {
+    div.style.background = 'transparent';
+    div.style.borderColor = 'transparent';
+    div.style.borderBottom = '1.5px solid #c8c2b8';
+    div.style.borderRadius = '0';
+    div.style.height = '2px';
+  } else {
+    div.textContent = el.label;
+    div.style.background = el.bgColor || '#f0ede8';
+  }
+
+  // resize handle
+  const rh = document.createElement('div');
+  rh.className = 'resize-handle';
+  rh.addEventListener('mousedown', e => startResize(e, el.id));
+  div.appendChild(rh);
+
+  // delete btn
+  const db = document.createElement('div');
+  db.className = 'del-btn';
+  db.textContent = '×';
+  db.addEventListener('click', e => { e.stopPropagation(); deleteEl(el.id); });
+  div.appendChild(db);
+
+  div.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('resize-handle') || e.target.classList.contains('del-btn')) return;
+    if (currentTool === 'select') startDrag(e, el.id);
+  });
+  div.addEventListener('click', e => {
+    if (e.target.classList.contains('del-btn')) return;
+    selectElement(el.id);
+  });
+  div.addEventListener('dblclick', e => {
+    const el2 = elements.find(x => x.id === el.id);
+    if (!el2) return;
+    const newLabel = prompt('Label:', el2.label);
+    if (newLabel !== null) { saveHistory(); el2.label = newLabel; renderAll(); }
+  });
+
+  canvas.appendChild(div);
+}
+
+function renderLayer(el) {
+  const item = document.createElement('div');
+  item.className = 'layer-item' + (el.id === selectedId ? ' selected' : '');
+  item.dataset.id = el.id;
+  item.innerHTML = `<div class="layer-dot"></div><span>${el.type} — ${el.label}</span>`;
+  item.addEventListener('click', () => selectElement(el.id));
+  layersList.appendChild(item);
+}
+
+function selectElement(id) {
+  selectedId = id;
+  renderAll();
+  updateProps();
+}
+
+function updateProps() {
+  const el = elements.find(e => e.id === selectedId);
+  if (!el) {
+    propsContent.innerHTML = '<div id="no-selection">Select an element to edit its properties</div>';
+    return;
+  }
+  propsContent.innerHTML = `
+    <div class="prop-row">
+      <div class="prop-label">Label</div>
+      <input class="prop-input" id="p-label" value="${el.label}">
+    </div>
+    <div class="prop-row-2">
+      <div>
+        <div class="prop-label">X</div>
+        <input class="prop-input" id="p-x" type="number" value="${Math.round(el.x)}">
+      </div>
+      <div>
+        <div class="prop-label">Y</div>
+        <input class="prop-input" id="p-y" type="number" value="${Math.round(el.y)}">
+      </div>
+    </div>
+    <div class="prop-row-2">
+      <div>
+        <div class="prop-label">W</div>
+        <input class="prop-input" id="p-w" type="number" value="${Math.round(el.w)}">
+      </div>
+      <div>
+        <div class="prop-label">H</div>
+        <input class="prop-input" id="p-h" type="number" value="${Math.round(el.h)}">
+      </div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Font size</div>
+      <input class="prop-input" id="p-fs" type="number" value="${el.fontSize}">
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">BG Color</div>
+      <input class="prop-input" id="p-bg" type="color" value="${el.bgColor || '#c8c2b8'}" style="height:32px;padding:2px;">
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">Text Color</div>
+      <input class="prop-input" id="p-tc" type="color" value="${el.textColor || '#9a948a'}" style="height:32px;padding:2px;">
+    </div>
+  `;
+
+  const bind = (id, key, parse) => {
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    inp.addEventListener('input', () => {
+      saveHistory();
+      el[key] = parse ? parse(inp.value) : inp.value;
+      renderAll();
+    });
+  };
+  bind('p-label', 'label');
+  bind('p-x', 'x', parseFloat);
+  bind('p-y', 'y', parseFloat);
+  bind('p-w', 'w', parseFloat);
+  bind('p-h', 'h', parseFloat);
+  bind('p-fs', 'fontSize', parseInt);
+  bind('p-bg', 'bgColor');
+  bind('p-tc', 'textColor');
+}
+
+function deleteEl(id) {
+  saveHistory();
+  elements = elements.filter(e => e.id !== id);
+  if (selectedId === id) selectedId = null;
+  renderAll();
+}
+
+function startDrag(e, id) {
+  e.preventDefault();
+  draggingEl = id;
+  const el = elements.find(x => x.id === id);
+  const rect = phoneFrame.getBoundingClientRect();
+  dragOffsetX = e.clientX - rect.left - el.x;
+  dragOffsetY = e.clientY - rect.top - el.y;
+  selectElement(id);
+}
+
+function startResize(e, id) {
+  e.preventDefault();
+  e.stopPropagation();
+  resizing = id;
+  const el = elements.find(x => x.id === id);
+  resizeStartX = e.clientX;
+  resizeStartY = e.clientY;
+  resizeStartW = el.w;
+  resizeStartH = el.h;
+}
+
+document.addEventListener('mousemove', e => {
+  if (draggingEl) {
+    const el = elements.find(x => x.id === draggingEl);
+    const rect = phoneFrame.getBoundingClientRect();
+    el.x = Math.max(0, Math.min(375 - el.w, e.clientX - rect.left - dragOffsetX));
+    el.y = Math.max(0, Math.min(812 - el.h, e.clientY - rect.top - dragOffsetY));
+    renderAll();
+  }
+  if (resizing) {
+    const el = elements.find(x => x.id === resizing);
+    el.w = Math.max(30, resizeStartW + e.clientX - resizeStartX);
+    el.h = Math.max(20, resizeStartH + e.clientY - resizeStartY);
+    renderAll();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (draggingEl || resizing) { saveHistory(); }
+  draggingEl = null;
+  resizing = null;
+});
+
+// Drag from panel
+document.querySelectorAll('.comp-item').forEach(item => {
+  item.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('type', item.dataset.type);
+  });
+});
+
+const canvasWrap = document.getElementById('canvas-wrap');
+canvasWrap.addEventListener('dragover', e => e.preventDefault());
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  const type = e.dataTransfer.getData('type');
+  const rect = phoneFrame.getBoundingClientRect();
+  const d = defaults[type] || defaults.rect;
+  const x = Math.max(0, Math.min(375 - d.w, e.clientX - rect.left - d.w/2));
+  const y = Math.max(0, Math.min(812 - d.h, e.clientY - rect.top - d.h/2));
+  addElement(type, x, y);
+  showStatus(type + ' added');
+});
+
+// Click on canvas to deselect
+canvas.addEventListener('click', e => {
+  if (e.target === canvas) { selectedId = null; renderAll(); }
+});
+
+// Toolbar tools
+document.getElementById('tool-select').addEventListener('click', () => setTool('select'));
+document.getElementById('tool-text').addEventListener('click', () => { setTool('text'); addElement('text'); });
+document.getElementById('tool-rect').addEventListener('click', () => { setTool('rect'); addElement('rect'); });
+document.getElementById('btn-undo').addEventListener('click', undo);
+document.getElementById('btn-delete').addEventListener('click', () => { if (selectedId) deleteEl(selectedId); });
+document.getElementById('btn-duplicate').addEventListener('click', () => {
+  const el = elements.find(e => e.id === selectedId);
+  if (!el) return;
+  saveHistory();
+  const copy = { ...el, id: uid(), x: el.x + 16, y: el.y + 16 };
+  elements.push(copy);
+  renderAll();
+  selectElement(copy.id);
+});
+
+function setTool(t) {
+  currentTool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool-' + t)?.classList.add('active');
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); document.getElementById('btn-duplicate').click(); }
+  if (e.key === 'Delete' || e.key === 'Backspace') { if (selectedId) deleteEl(selectedId); }
+  if (e.key === 'v' || e.key === 'V') setTool('select');
+  if (e.key === 't' || e.key === 'T') { setTool('text'); addElement('text'); }
+  if (e.key === 'r' || e.key === 'R') { setTool('rect'); addElement('rect'); }
+  if (selectedId) {
+    const el = elements.find(x => x.id === selectedId);
+    if (!el) return;
+    const step = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); el.x -= step; renderAll(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); el.x += step; renderAll(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); el.y -= step; renderAll(); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); el.y += step; renderAll(); }
+  }
+});
+
+// Export PNG using html2canvas
+document.getElementById('btn-export').addEventListener('click', () => {
+  import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.esm.min.js').then(mod => {
+    const h2c = mod.default;
+    const prev = selectedId;
+    selectedId = null;
+    renderAll();
+    h2c(phoneFrame, { scale: 2, useCORS: true, backgroundColor: null }).then(c => {
+      const a = document.createElement('a');
+      a.download = 'wireframe.png';
+      a.href = c.toDataURL();
+      a.click();
+      selectedId = prev;
+      renderAll();
+      showStatus('Exported!');
+    });
+  }).catch(() => showStatus('Export unavailable'));
+});
+
+// Load default template
+function loadTemplate() {
+  addElement('navbar', 0, 30);
+  elements[elements.length-1].label = 'App Name';
+  addElement('image', 20, 82);
+  addElement('card', 20, 280);
+  addElement('card', 20, 400);
+  addElement('tabbar', 0, 752);
+  selectedId = null;
+  renderAll();
+  history = [];
+  showStatus('Template loaded — drag components from the left panel');
+}
+
+loadTemplate();
+</script>
+</body>
+</html>
