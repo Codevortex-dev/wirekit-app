@@ -409,6 +409,40 @@
     z-index: 999;
   }
   #status.show { opacity: 1; }
+
+  body.dark {
+
+  --bg:#181818;
+
+  --surface:#222;
+
+  --border:#444;
+
+  --text:#f5f5f5;
+
+  --text-muted:#bdbdbd;
+
+  --accent:#111;
+}
+
+#device-switcher{
+  position:absolute;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:100;
+  display:flex;
+  gap:8px;
+}
+
+#device-switcher button{
+  padding:6px 12px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-family:'Syne',sans-serif;
+}
+
 </style>
 </head>
 <body>
@@ -422,9 +456,26 @@
   <button class="tool-btn" id="tool-rect" title="Rectangle (R)">&#9633;</button>
   <div class="sep"></div>
   <button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)">&#8617;</button>
+  <button class="tool-btn" id="btn-redo" title="Redo (Ctrl+Y)">&#8618;</button>
   <button class="tool-btn" id="btn-delete" title="Delete selected">&#128465;</button>
   <button class="tool-btn" id="btn-duplicate" title="Duplicate (Ctrl+D)">&#9633;&#9633;</button>
   <div class="toolbar-right">
+
+<button class="btn-export"
+        id="btn-save">
+Save
+</button>
+
+<button class="btn-export"
+        id="btn-load">
+Load
+</button>
+
+<button class="btn-export"
+        id="btn-theme">
+🌙
+</button>
+
     <button class="btn-export" id="btn-export">Export PNG</button>
   </div>
 </div>
@@ -526,6 +577,12 @@
     </div>
   </div>
 
+  <div id="device-switcher">
+  <button data-device="mobile">Mobile</button>
+  <button data-device="tablet">Tablet</button>
+  <button data-device="desktop">Desktop</button>
+</div>
+
   <!-- CANVAS -->
   <div id="canvas-wrap">
     <div id="phone-frame">
@@ -553,11 +610,14 @@ const phoneFrame = document.getElementById('phone-frame');
 const layersList = document.getElementById('layers-list');
 const propsContent = document.getElementById('props-content');
 const statusEl = document.getElementById('status');
+let canvasWidth = 375;
+let canvasHeight = 812;
 
 let elements = [];
 let selectedId = null;
 let idCounter = 0;
 let history = [];
+let redoStack = [];
 let currentTool = 'select';
 let draggingEl = null;
 let dragOffsetX = 0, dragOffsetY = 0;
@@ -574,14 +634,41 @@ function showStatus(msg) {
 
 function saveHistory() {
   history.push(JSON.stringify(elements));
-  if (history.length > 40) history.shift();
+
+  if (history.length > 40)
+    history.shift();
+
+  redoStack = [];
 }
 
 function undo() {
+
   if (!history.length) return;
-  elements = JSON.parse(history.pop());
+
+  redoStack.push(
+    JSON.stringify(elements)
+  );
+
+  elements =
+    JSON.parse(history.pop());
+
   renderAll();
+
   showStatus('Undone');
+}
+
+function redo() {
+
+  if (!redoStack.length) return;
+
+  history.push(JSON.stringify(elements));
+
+  elements =
+    JSON.parse(redoStack.pop());
+
+  renderAll();
+
+  showStatus('Redone');
 }
 
 const defaults = {
@@ -834,8 +921,8 @@ document.addEventListener('mousemove', e => {
   if (draggingEl) {
     const el = elements.find(x => x.id === draggingEl);
     const rect = phoneFrame.getBoundingClientRect();
-    el.x = Math.max(0, Math.min(375 - el.w, e.clientX - rect.left - dragOffsetX));
-    el.y = Math.max(0, Math.min(812 - el.h, e.clientY - rect.top - dragOffsetY));
+    el.x = Math.max(0, Math.min(canvasWidth - el.w, e.clientX - rect.left - dragOffsetX));
+    el.y = Math.max(0, Math.min(canvasHeight - el.h, e.clientY - rect.top - dragOffsetY));
     renderAll();
   }
   if (resizing) {
@@ -866,8 +953,8 @@ canvasWrap.addEventListener('drop', e => {
   const type = e.dataTransfer.getData('type');
   const rect = phoneFrame.getBoundingClientRect();
   const d = defaults[type] || defaults.rect;
-  const x = Math.max(0, Math.min(375 - d.w, e.clientX - rect.left - d.w/2));
-  const y = Math.max(0, Math.min(812 - d.h, e.clientY - rect.top - d.h/2));
+  const x = Math.max(0,Math.min(canvasWidth - d.w, e.clientX - rect.left - d.w/2));
+  const y = Math.max(0,Math.min(canvasHeight - d.h, e.clientY - rect.top - d.h/2));
   addElement(type, x, y);
   showStatus(type + ' added');
 });
@@ -882,6 +969,7 @@ document.getElementById('tool-select').addEventListener('click', () => setTool('
 document.getElementById('tool-text').addEventListener('click', () => { setTool('text'); addElement('text'); });
 document.getElementById('tool-rect').addEventListener('click', () => { setTool('rect'); addElement('rect'); });
 document.getElementById('btn-undo').addEventListener('click', undo);
+document.getElementById('btn-redo').addEventListener('click', redo);
 document.getElementById('btn-delete').addEventListener('click', () => { if (selectedId) deleteEl(selectedId); });
 document.getElementById('btn-duplicate').addEventListener('click', () => {
   const el = elements.find(e => e.id === selectedId);
@@ -899,10 +987,117 @@ function setTool(t) {
   document.getElementById('tool-' + t)?.classList.add('active');
 }
 
+document
+.querySelectorAll('#device-switcher button')
+.forEach(btn => {
+
+  btn.addEventListener('click', () => {
+
+    if(btn.dataset.device === 'mobile'){
+
+      canvasWidth = 375;
+      canvasHeight = 812;
+
+      elements.forEach(el => {
+
+  if(el.type === 'navbar')
+    el.w = 375;
+
+  if(el.type === 'tabbar')
+    el.w = 375;
+
+  if(el.type === 'image')
+    el.w = 335;
+
+  if(el.type === 'card')
+    el.w = 335;
+
+  if(el.type === 'divider')
+    el.w = 335;
+
+});
+
+      phoneFrame.style.width = '375px';
+      phoneFrame.style.minHeight = '812px';
+    }
+
+    if(btn.dataset.device === 'tablet'){
+
+      canvasWidth = 768;
+      canvasHeight = 1024;
+      elements.forEach(el => {
+
+  if(el.type === 'navbar')
+    el.w = 768;
+
+  if(el.type === 'tabbar')
+    el.w = 768;
+
+  if(el.type === 'image')
+    el.w = 728;
+
+  if(el.type === 'card')
+    el.w = 728;
+
+  if(el.type === 'divider')
+    el.w = 728;
+
+});
+
+      phoneFrame.style.width = '768px';
+      phoneFrame.style.minHeight = '1024px';
+    }
+
+    if(btn.dataset.device === 'desktop'){
+
+      canvasWidth = 1200;
+      canvasHeight = 900;
+      elements.forEach(el => {
+
+  if(el.type === 'navbar')
+    el.w = 1200;
+
+  if(el.type === 'tabbar')
+    el.w = 1200;
+
+  if(el.type === 'image')
+    el.w = 1160;
+
+  if(el.type === 'card')
+    el.w = 1160;
+
+  if(el.type === 'divider')
+    el.w = 1160;
+
+});
+
+      phoneFrame.style.width = '1200px';
+      phoneFrame.style.minHeight = '900px';
+    }
+
+    renderAll();
+
+  });
+
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') 
+    { 
+      e.preventDefault(); undo(); 
+    }
+
+  if ((e.ctrlKey || e.metaKey) &&
+    e.key === 'y') {
+
+  e.preventDefault();
+
+  redo();
+}
+
   if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); document.getElementById('btn-duplicate').click(); }
   if (e.key === 'Delete' || e.key === 'Backspace') { if (selectedId) deleteEl(selectedId); }
   if (e.key === 'v' || e.key === 'V') setTool('select');
@@ -951,6 +1146,52 @@ function loadTemplate() {
   history = [];
   showStatus('Template loaded — drag components from the left panel');
 }
+
+document
+.getElementById('btn-save')
+.addEventListener('click', () => {
+
+  localStorage.setItem(
+    'wirekitProject',
+    JSON.stringify(elements)
+  );
+
+  showStatus('Project saved');
+});
+
+
+document
+.getElementById('btn-load')
+.addEventListener('click', () => {
+
+  const data =
+    localStorage.getItem(
+      'wirekitProject'
+    );
+
+  if (!data) {
+
+    showStatus('No saved project');
+
+    return;
+  }
+
+  elements = JSON.parse(data);
+
+  renderAll();
+
+  showStatus('Project loaded');
+});
+
+document
+.getElementById('btn-theme')
+.addEventListener('click', () => {
+
+  document.body
+  .classList
+  .toggle('dark');
+
+});
 
 loadTemplate();
 </script>
