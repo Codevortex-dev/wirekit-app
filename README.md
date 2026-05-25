@@ -8,6 +8,17 @@ User Personas & User Flows — Create detailed personas and map out user journey
 Wireframe Canvas — Drag-and-drop low-fidelity mobile wireframe builder
 Design Thinking Documentation — Document your process across all 5 stages (Empathize, Define, Ideate, Prototype, Test)
 
+• Drag & Drop UI Components
+• Mobile / Tablet / Desktop Canvas
+• Undo & Redo
+• Layers Panel
+• Properties Panel
+• Save & Load Designs
+• Dark Mode
+• PNG Export
+• Keyboard Shortcuts
+• Responsive Wireframing
+
 
 🚀 Getting Started
 Option 1 — Open directly in browser
