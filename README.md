@@ -66,8 +66,6 @@ Double-click an element to rename it
 Resize elements using the handle in the bottom-right corner
 Click Export PNG to save your wireframe as an image
 
-Keyboard Shortcuts
-KeyActionVSelect toolTAdd text blockRAdd rectangleDeleteRemove selected elementCtrl + ZUndoCtrl + DDuplicate elementArrow keysNudge element (+ Shift for 10px)
 
 📁 Project Structure
 mobile-wireframe-studio/
