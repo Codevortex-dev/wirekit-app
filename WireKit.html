@@ -228,7 +228,9 @@
     justify-content: center;
     transition: box-shadow 0.1s;
     overflow: hidden;
+      will-change: transform;
   }
+
   .wire-el:hover { box-shadow: 0 0 0 2px var(--selected); }
   .wire-el.selected { box-shadow: 0 0 0 2px var(--selected); border-color: var(--selected); }
 
@@ -443,6 +445,16 @@
   font-family:'Syne',sans-serif;
 }
 
+#mood-board img:hover{
+  transform:scale(1.03);
+}
+
+#mood-board img{
+  transition:0.2s;
+}
+
+
+
 </style>
 </head>
 <body>
@@ -474,6 +486,10 @@ Load
 <button class="btn-export"
         id="btn-theme">
 🌙
+</button>
+
+<button id="btn-hifi" class="btn-export">
+  Hi-Fi
 </button>
 
     <button class="btn-export" id="btn-export">Export PNG</button>
@@ -572,6 +588,38 @@ Load
     </div>
 
     <div class="panel-section">
+  <div class="panel-label">Mood Board</div>
+
+ <label for="mood-upload"
+       style="
+       display:block;
+       text-align:center;
+       padding:10px;
+       background:var(--accent);
+       color:white;
+       border-radius:8px;
+       font-weight:600;
+       cursor:pointer;
+       margin-bottom:10px;">
+  📸 Add Inspiration
+</label>
+
+<input
+  type="file"
+  id="mood-upload"
+  accept="image/*"
+  multiple
+  style="display:none;">
+
+  <div id="mood-board"
+       style="
+       display:grid;
+       grid-template-columns:1fr 1fr;
+       gap:6px;">
+  </div>
+</div>
+
+    <div class="panel-section">
   <div class="panel-label">Style Guide</div>
 
   <label style="font-size:11px;">Primary Color</label>
@@ -638,6 +686,7 @@ let canvasWidth = 375;
 let canvasHeight = 812;
 
 let elements = [];
+let moodImages = [];
 let selectedId = null;
 let idCounter = 0;
 let history = [];
@@ -650,6 +699,7 @@ let resizeStartX, resizeStartY, resizeStartW, resizeStartH;
 let primaryColor = '#3d6b8c';
 let secondaryColor = '#c8c2b8';
 let globalRadius = 8;
+let hiFiMode = false;
 
 function uid() { return 'el_' + (++idCounter); }
 
@@ -721,6 +771,7 @@ function addElement(type, x, y) {
     x: x !== undefined ? x : d.x,
     y: y !== undefined ? y : d.y,
     w: d.w, h: d.h,
+    imageSrc: '',
     label: d.label,
     fontSize: 13,
     textColor: '#9a948a',
@@ -757,59 +808,181 @@ function renderElement(el) {
   if (el.textColor) div.style.color = el.textColor;
   if (el.fontSize) div.style.fontSize = el.fontSize + 'px';
 
-  if (el.type === 'text') {
+  if (el.type === 'text') 
+    {
+
     div.innerHTML = `<div style="font-weight:600;font-size:${el.fontSize+1}px;color:#3a3530;margin-bottom:4px;">${el.label}</div><div style="font-size:11px;line-height:1.5;">Body text goes here for your wireframe layout.</div>`;
-  } else if (el.type === 'list') {
+    } 
+  
+  else if (el.type === 'list') 
+    {
+
     div.innerHTML = ['Item One', 'Item Two', 'Item Three'].map(t =>
       `<div style="display:flex;align-items:center;gap:6px;width:100%;padding:2px 0;"><div style="width:5px;height:5px;border-radius:50%;background:#9a948a;flex-shrink:0;"></div><div style="flex:1;height:8px;background:#e0dbd4;border-radius:3px;"></div></div>`
     ).join('');
-  } else if (el.type === 'navbar') {
+  
+    } 
+  
+  else if (el.type === 'navbar') 
+    {
+      if (hiFiMode) {
+
+  div.style.background = primaryColor;
+  div.style.color = '#ffffff';
+  div.style.border = 'none';
+
+}
+
     div.style.background = secondaryColor;
     div.innerHTML = `<span style="font-size:18px;opacity:0.7;">≡</span><span style="flex:1;text-align:center;font-size:13px;font-weight:600;color:#3a3530;">${el.label}</span><span style="font-size:15px;opacity:0.5;">⋯</span>`;
     div.style.flexDirection = 'row';
     div.style.padding = '0 14px';
     div.style.gap = '8px';
-  } else if (el.type === 'tabbar') {
+  
+    } 
+  
+  else if (el.type === 'tabbar') 
+    {
+      if (hiFiMode) {
+
+  div.style.background = '#ffffff';
+  div.style.borderTop = '1px solid #e5e7eb';
+
+}
+
     const tabs = ['⌂ Home','♡ Saved','⊕ New','☰ Menu'];
     div.innerHTML = tabs.map((t,i) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;gap:2px;border-right:${i<3?'1px solid #c8c2b8':'none'};height:100%;">${t}</div>`).join('');
     div.style.flexDirection = 'row';
     div.style.padding = '0';
     div.style.gap = '0';
-  } else if (el.type === 'card') {
+  
+    } 
+  
+  else if (el.type === 'card') 
+    {
+      if (hiFiMode) {
+
+  div.style.background = '#ffffff';
+  div.style.border = 'none';
+  div.style.borderRadius = globalRadius + 'px';
+  div.style.boxShadow = '0 8px 20px rgba(0,0,0,.12)';
+
+}
+
     div.style.borderColor = secondaryColor;
     div.innerHTML = `<div style="padding:12px;width:100%;"><div style="height:10px;background:#c8c2b8;border-radius:3px;margin-bottom:8px;width:60%;"></div><div style="height:7px;background:#e0dbd4;border-radius:3px;margin-bottom:5px;"></div><div style="height:7px;background:#e0dbd4;border-radius:3px;width:80%;"></div></div>`;
     div.style.flexDirection = 'column';
     div.style.alignItems = 'flex-start';
     div.style.justifyContent = 'flex-start';
-  } else if (el.type === 'button') {
-    div.textContent = el.label;
-    div.style.fontWeight = '600';
-    div.style.background = el.bgColor || primaryColor;
-    div.style.borderRadius = '8px';
-  } else if (el.type === 'input') {
+  
+    } 
+  
+  else if (el.type === 'button') {
+
+  div.textContent = el.label;
+
+  div.style.fontWeight = '600';
+
+  if (hiFiMode) {
+
+  div.style.background = primaryColor;
+  div.style.color = '#ffffff';
+  div.style.border = 'none';
+  div.style.borderRadius = globalRadius + 'px';
+  div.style.boxShadow = '0 4px 12px rgba(0,0,0,.15)';
+
+} else {
+
+  div.style.background = el.bgColor || '#c8c2b8';
+
+}
+
+}
+
+  else if (el.type === 'input') 
+    {
+
+      if (hiFiMode) {
+
+  div.style.borderRadius = globalRadius + 'px';
+  div.style.border = '1px solid #d1d5db';
+  div.style.background = '#ffffff';
+
+}
+
     div.innerHTML = `<span style="color:#b0a89e;font-size:11px;">${el.label}...</span>`;
     div.style.justifyContent = 'flex-start';
     div.style.padding = '0 12px';
     div.style.background = el.bgColor || '#faf8f5';
     div.style.borderRadius = '8px';
-  } else if (el.type === 'image') {
-    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="font-size:28px;opacity:0.4;">⬡</div><div style="font-size:10px;">Image Placeholder</div></div>`;
-    div.style.background = el.bgColor || '#e8e2d8';
-  } else if (el.type === 'avatar') {
+  
+    }  
+  
+  else if (el.type === 'image')
+
+    {
+
+  if(el.imageSrc)
+    {
+
+    div.innerHTML = `
+      <img src="${el.imageSrc}"
+           style="
+           width:100%;
+           height:100%;
+           object-fit:cover;">
+            pointer-events:none;
+    `;
+
+    div.style.border = 'none';
+    div.style.overflow = 'hidden';
+
+    }
+
+  else {
+
+    div.innerHTML = `
+      <div style="
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:6px;">
+        <div style="font-size:28px;opacity:0.4;">⬡</div>
+        <div style="font-size:10px;">
+          Image Placeholder
+        </div>
+      </div>
+    `;
+
+  }
+  } 
+  
+  else if (el.type === 'avatar') 
+    {
+
     div.style.borderRadius = '50%';
     div.style.fontSize = '22px';
     div.style.background = el.bgColor || '#c8c2b8';
     div.textContent = '👤';
-  } else if (el.type === 'divider') {
+    }
+  else if (el.type === 'divider')
+    {
+
     div.style.background = 'transparent';
     div.style.borderColor = 'transparent';
     div.style.borderBottom = '1.5px solid #c8c2b8';
     div.style.borderRadius = '0';
     div.style.height = '2px';
-  } else {
+    
+    } 
+
+  else 
+    {
+
     div.textContent = el.label;
     div.style.background = el.bgColor || '#f0ede8';
-  }
+    
+    }
 
   // resize handle
   const rh = document.createElement('div');
@@ -997,12 +1170,37 @@ canvas.addEventListener('click', e => {
 });
 
 // Toolbar tools
-document.getElementById('tool-select').addEventListener('click', () => setTool('select'));
-document.getElementById('tool-text').addEventListener('click', () => { setTool('text'); addElement('text'); });
-document.getElementById('tool-rect').addEventListener('click', () => { setTool('rect'); addElement('rect'); });
-document.getElementById('btn-undo').addEventListener('click', undo);
-document.getElementById('btn-redo').addEventListener('click', redo);
-document.getElementById('btn-delete').addEventListener('click', () => { if (selectedId) deleteEl(selectedId); });
+document
+.getElementById('tool-select')
+.addEventListener('click', () => setTool('select'));
+
+document
+.getElementById('tool-text')
+.addEventListener('click', () => { setTool('text'); 
+addElement('text'); 
+});
+
+document
+.getElementById('tool-rect')
+.addEventListener('click', () => { setTool('rect'); addElement('rect'); 
+
+});
+
+document
+.getElementById('btn-undo')
+.addEventListener('click', undo);
+
+document
+.getElementById('btn-redo')
+.addEventListener('click', redo);
+
+document
+.getElementById('btn-delete')
+.addEventListener('click', () => { if (selectedId) deleteEl(selectedId);
+ 
+});
+
+
 document.getElementById('btn-duplicate').addEventListener('click', () => {
   const el = elements.find(e => e.id === selectedId);
   if (!el) return;
@@ -1011,6 +1209,21 @@ document.getElementById('btn-duplicate').addEventListener('click', () => {
   elements.push(copy);
   renderAll();
   selectElement(copy.id);
+});
+document
+.getElementById('btn-hifi')
+.addEventListener('click', () => {
+
+  hiFiMode = !hiFiMode;
+
+  renderAll();
+
+  showStatus(
+    hiFiMode
+      ? 'High Fidelity ON'
+      : 'Wireframe Mode'
+  );
+
 });
 
 function setTool(t) {
@@ -1165,6 +1378,64 @@ document.getElementById('btn-export').addEventListener('click', () => {
   }).catch(() => showStatus('Export unavailable'));
 });
 
+
+function renderMoodBoard() {
+
+  const board =
+    document.getElementById('mood-board');
+
+  if(!board) return;
+
+  board.innerHTML = '';
+
+  moodImages.forEach((src,index) => {
+
+    const img =
+      document.createElement('img');
+
+    img.src = src;
+
+    img.style.width = '100%';
+    img.style.height = '80px';
+    img.style.objectFit = 'cover';
+    img.style.borderRadius = '6px';
+    img.style.border = '1px solid #d6d0c8';
+    img.style.cursor = 'pointer';
+
+    img.title = 'Click to remove';
+
+    img.onclick = () => {
+
+  const selected =
+    elements.find(
+      e => e.id === selectedId
+    );
+
+  if(selected &&
+     selected.type === 'image'){
+
+    selected.imageSrc = src;
+
+    renderAll();
+
+    showStatus(
+      'Image applied'
+    );
+
+    return;
+  }
+
+  moodImages.splice(index,1);
+
+  renderMoodBoard();
+
+};
+    board.appendChild(img);
+
+  });
+
+}
+
 // Load default template
 function loadTemplate() {
   addElement('navbar', 0, 30);
@@ -1252,7 +1523,34 @@ document
 
 });
 
+document
+.getElementById('mood-upload')
+.addEventListener('change', e => {
+
+  [...e.target.files].forEach(file => {
+
+    const reader =
+      new FileReader();
+
+    reader.onload = ev => {
+
+      moodImages.push(
+        ev.target.result
+      );
+
+      renderMoodBoard();
+
+    };
+
+    reader.readAsDataURL(file);
+
+  });
+
+});
+
+renderMoodBoard();
 loadTemplate();
+
 </script>
 </body>
 </html>
