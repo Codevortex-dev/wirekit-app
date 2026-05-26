@@ -1,5 +1,5 @@
-📱 Mobile Wireframe Studio
-A browser-based low-fidelity wireframing tool for mobile app design. No installations, no sign-ups — just open and start designing.
+📱  Wireframe Studio
+A browser-based low-fidelity wireframing tool for multi-Platform app design. No installations, no sign-ups — just open and start designing.
 
 ✨ Features
 
