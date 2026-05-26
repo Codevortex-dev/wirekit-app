@@ -31,6 +31,12 @@ Design Thinking Documentation — Document your process across all 5 stages (Emp
 
 • Responsive Wireframing
 
+• Navigation Bar
+
+• Style Board
+
+• Hi-Fi mode for high fidelity mockups
+
 
 🚀 Getting Started
 Option 1 — Open directly in browser
