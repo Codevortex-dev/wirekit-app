@@ -60,7 +60,7 @@ No frameworks, no dependencies
 📖 How to Use
 Wireframe Canvas
 
-Drag components from the left panel onto the phone canvas
+Drag components from the left panel onto the canvas
 Click any element to select and edit its properties on the right panel
 Double-click an element to rename it
 Resize elements using the handle in the bottom-right corner
