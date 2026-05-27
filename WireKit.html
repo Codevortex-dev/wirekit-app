@@ -243,9 +243,14 @@
     opacity: 0;
     transition: opacity 0.1s;
   }
-  .wire-el.selected .resize-handle,
-  .wire-el:hover .resize-handle { opacity: 1; }
 
+  body.preview .wire-el .resize-handle{
+  display:none;
+  }
+
+  body.preview .wire-el .del-btn{
+  display:none;
+  }
   .wire-el .del-btn {
     position: absolute;
     top: -8px; right: -8px;
@@ -643,11 +648,37 @@ Load
          style="width:100%;">
 </div>
 
-    <div class="panel-section" style="border-bottom:none;">
-      <div class="panel-label">Layers</div>
-      <div id="layers-list"></div>
-    </div>
+    <div class="panel-section">
+  <div class="panel-label">Screens</div>
+
+  <button id="btn-new-screen"
+          style="
+          width:100%;
+          padding:6px;
+          margin-bottom:8px;
+          cursor:pointer;">
+    + New Screen
+  </button>
+
+  <button id="btn-delete-screen"
+        style="
+        width:100%;
+        padding:6px;
+        margin-bottom:8px;
+        cursor:pointer;">
+  Delete Screen
+</button>
+
+
+  <div id="screens-list"></div>
+</div>
+
+<div class="panel-section" style="border-bottom:none;">
+  <div class="panel-label">Layers</div>
+  <div id="layers-list"></div>
+</div>
   </div>
+
 
   <div id="device-switcher">
   <button data-device="mobile">Mobile</button>
@@ -680,12 +711,22 @@ Load
 const canvas = document.getElementById('canvas');
 const phoneFrame = document.getElementById('phone-frame');
 const layersList = document.getElementById('layers-list');
+const screensList =document.getElementById('screens-list');
 const propsContent = document.getElementById('props-content');
 const statusEl = document.getElementById('status');
 let canvasWidth = 375;
 let canvasHeight = 812;
 
-let elements = [];
+let screens = [
+  {
+    name: 'Screen 1',
+    elements: []
+  }
+];
+
+let currentScreen = 0;
+
+let elements = screens[currentScreen].elements;
 let moodImages = [];
 let selectedId = null;
 let idCounter = 0;
@@ -700,6 +741,7 @@ let primaryColor = '#3d6b8c';
 let secondaryColor = '#c8c2b8';
 let globalRadius = 8;
 let hiFiMode = false;
+let previewMode = false;
 
 function uid() { return 'el_' + (++idCounter); }
 
@@ -771,6 +813,7 @@ function addElement(type, x, y) {
     x: x !== undefined ? x : d.x,
     y: y !== undefined ? y : d.y,
     w: d.w, h: d.h,
+    targetScreen: null,
     imageSrc: '',
     label: d.label,
     fontSize: 13,
@@ -790,6 +833,7 @@ function renderAll() {
     renderLayer(el);
   });
   updateProps();
+  renderScreens();
 }
 
 function renderElement(el) {
@@ -999,12 +1043,45 @@ function renderElement(el) {
 
   div.addEventListener('mousedown', e => {
     if (e.target.classList.contains('resize-handle') || e.target.classList.contains('del-btn')) return;
-    if (currentTool === 'select') startDrag(e, el.id);
+    if (
+  currentTool === 'select' &&
+  !previewMode
+)
+
+{
+  startDrag(e, el.id);
+}
+
   });
   div.addEventListener('click', e => {
-    if (e.target.classList.contains('del-btn')) return;
-    selectElement(el.id);
-  });
+
+  if (e.target.classList.contains('del-btn'))
+    return;
+
+  if (
+    previewMode &&
+    el.type === 'button' &&
+    el.targetScreen !== null
+  ) {
+
+    currentScreen = el.targetScreen;
+
+    elements =
+      screens[currentScreen]
+      .elements;
+
+    selectedId = null;
+
+    renderAll();
+
+    return;
+  }
+
+  selectElement(el.id);
+
+});
+
+
   div.addEventListener('dblclick', e => {
     const el2 = elements.find(x => x.id === el.id);
     if (!el2) return;
@@ -1022,6 +1099,45 @@ function renderLayer(el) {
   item.innerHTML = `<div class="layer-dot"></div><span>${el.type} — ${el.label}</span>`;
   item.addEventListener('click', () => selectElement(el.id));
   layersList.appendChild(item);
+}
+
+function renderScreens() {
+
+  screensList.innerHTML = '';
+
+  screens.forEach((screen,index)=>{
+
+    const div =
+      document.createElement('div');
+
+    div.className =
+      'layer-item' +
+      (index===currentScreen
+       ? ' selected'
+       : '');
+
+    div.textContent =
+      screen.name;
+
+    div.onclick = ()=>{
+
+      currentScreen = index;
+
+      elements =
+        screens[currentScreen]
+        .elements;
+
+      selectedId = null;
+
+      renderAll();
+      renderScreens();
+
+    };
+
+    screensList.appendChild(div);
+
+  });
+
 }
 
 function selectElement(id) {
@@ -1069,11 +1185,43 @@ function updateProps() {
       <div class="prop-label">BG Color</div>
       <input class="prop-input" id="p-bg" type="color" value="${el.bgColor || '#c8c2b8'}" style="height:32px;padding:2px;">
     </div>
+   
+
     <div class="prop-row">
-      <div class="prop-label">Text Color</div>
-      <input class="prop-input" id="p-tc" type="color" value="${el.textColor || '#9a948a'}" style="height:32px;padding:2px;">
-    </div>
-  `;
+  <div class="prop-label">Text Color</div>
+  <input class="prop-input"
+         id="p-tc"
+         type="color"
+         value="${el.textColor || '#9a948a'}"
+         style="height:32px;padding:2px;">
+</div>
+
+${el.type === 'button' ? `
+<div class="prop-row">
+  <div class="prop-label">
+    Navigate To
+  </div>
+
+  <select
+    class="prop-input"
+    id="p-target">
+
+    <option value="">
+      None
+    </option>
+
+    ${screens.map((s,i)=>`
+      <option
+        value="${i}"
+        ${el.targetScreen==i?'selected':''}>
+        ${s.name}
+      </option>
+    `).join('')}
+
+  </select>
+</div>
+` : ''}
+`;
 
   const bind = (id, key, parse) => {
     const inp = document.getElementById(id);
@@ -1092,7 +1240,28 @@ function updateProps() {
   bind('p-fs', 'fontSize', parseInt);
   bind('p-bg', 'bgColor');
   bind('p-tc', 'textColor');
+
+  const targetSelect =
+  document.getElementById('p-target');
+
+if(targetSelect){
+
+  targetSelect.addEventListener(
+    'change',
+    () => {
+
+      el.targetScreen =
+        targetSelect.value === ''
+          ? null
+          : Number(targetSelect.value);
+
+          }
+  );
+
 }
+
+}
+
 
 function deleteEl(id) {
   saveHistory();
@@ -1199,6 +1368,53 @@ document
 .addEventListener('click', () => { if (selectedId) deleteEl(selectedId);
  
 });
+
+document
+.getElementById('btn-new-screen')
+.addEventListener('click',()=>{
+
+  screens.push({
+
+    name:
+      'Screen ' +
+      (screens.length+1),
+
+    elements:[]
+  });
+
+  renderScreens();
+
+});
+
+document
+.getElementById('btn-delete-screen')
+.addEventListener('click', () => {
+
+  if (screens.length === 1) {
+    showStatus('Cannot delete last screen');
+    return;
+  }
+
+  screens.splice(currentScreen, 1);
+
+  currentScreen = Math.max(
+    0,
+    currentScreen - 1
+  );
+
+  elements =
+    screens[currentScreen]
+    .elements;
+
+  selectedId = null;
+
+  renderAll();
+  renderScreens();
+
+  showStatus('Screen deleted');
+
+});
+
 
 
 document.getElementById('btn-duplicate').addEventListener('click', () => {
@@ -1325,6 +1541,40 @@ document
   });
 
 });
+
+document
+.getElementById('btn-preview')
+.addEventListener('click', () => {
+
+  previewMode = !previewMode;
+
+  document.body.classList.toggle(
+  'preview',
+  previewMode
+);
+
+
+  document.body.classList.toggle(
+    'preview',
+    previewMode
+  );
+
+  document.body.style.cursor =
+    previewMode
+      ? 'default'
+      : '';
+
+  showStatus(
+    previewMode
+      ? 'Preview Mode'
+      : 'Edit Mode'
+  );
+
+});
+
+
+
+
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
