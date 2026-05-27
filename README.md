@@ -7,7 +7,7 @@ User Research — Define user needs, pain points, and goals
 
 User Personas & User Flows — Create detailed personas and map out user journeys
 
-Wireframe Canvas — Drag-and-drop low-fidelity mobile wireframe builder
+Wireframe Canvas — Drag-and-drop low and high fidelity multi-platform wireframe builder
 
 Design Thinking Documentation — Document your process across all 5 stages (Empathize, Define, Ideate, Prototype, Test)
 
