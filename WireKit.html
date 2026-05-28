@@ -670,7 +670,107 @@ Load
 </button>
 
 
+
+<div class="panel-section">
+  <div class="panel-label">
+    User Feedback
+  </div>
+
+  <input
+    id="tester-name"
+    class="prop-input"
+    placeholder="Tester Name">
+
+  <textarea
+    id="tester-feedback"
+    class="prop-input"
+    placeholder="Feedback..."
+    style="
+      margin-top:8px;
+      height:80px;
+      resize:none;">
+  </textarea>
+
+  <button
+    id="btn-save-feedback"
+    class="btn-export"
+    style="
+      width:100%;
+      margin-top:8px;">
+    Save Feedback
+  </button>
+</div>
+
+
+<div id="feedback-list"
+     style="
+     margin-top:10px;
+     display:flex;
+     flex-direction:column;
+     gap:8px;">
+</div>
+
+
+
   <div id="screens-list"></div>
+</div>
+
+
+<div class="panel-section">
+
+  <div class="panel-label">
+    Analytics
+  </div>
+
+  <div id="analytics-panel"
+       style="
+       font-size:11px;
+       line-height:1.7;
+       display:flex;
+       flex-direction:column;
+       gap:6px;">
+
+    <div>
+      Screens Visited:
+      <span id="stat-screens">
+        0
+      </span>
+    </div>
+
+    <div>
+      Button Clicks:
+      <span id="stat-clicks">
+        0
+      </span>
+    </div>
+
+    <div>
+      Interactions:
+      <span id="stat-interactions">
+        0
+      </span>
+    </div>
+
+    <div>
+      Session Time:
+      <span id="stat-time">
+        0s
+      </span>
+    </div>
+
+    <button
+  id="btn-export-report"
+  class="btn-export"
+  style="
+    width:100%;
+    margin-top:10px;">
+
+  Export Report
+
+</button>
+
+  </div>
+
 </div>
 
 <div class="panel-section" style="border-bottom:none;">
@@ -741,6 +841,20 @@ let primaryColor = '#3d6b8c';
 let secondaryColor = '#c8c2b8';
 let globalRadius = 8;
 let hiFiMode = false;
+let feedbackEntries = [];
+let analytics = {
+
+  screenVisits:{},
+
+  buttonClicks:{},
+
+  interactions:0,
+
+  testStart:null,
+
+  totalTime:0
+
+};
 let previewMode = false;
 
 function uid() { return 'el_' + (++idCounter); }
@@ -1066,13 +1180,41 @@ function renderElement(el) {
 
     currentScreen = el.targetScreen;
 
+    const screenName =
+
+  screens[currentScreen]
+  .name;
+
+analytics.screenVisits[
+  screenName
+] =
+
+  (analytics.screenVisits[
+    screenName
+  ] || 0) + 1;
+
+
     elements =
       screens[currentScreen]
       .elements;
 
     selectedId = null;
 
+
+analytics.buttonClicks[
+  el.label
+] =
+
+  (analytics.buttonClicks[
+    el.label
+  ] || 0) + 1;
+
+analytics.interactions++;
+
+
     renderAll();
+
+renderAnalytics();
 
     return;
   }
@@ -1386,6 +1528,166 @@ document
 
 });
 
+
+document
+.getElementById('btn-export-report')
+.addEventListener('click', () => {
+
+  let report = `
+USABILITY TEST REPORT
+=====================
+
+Generated:
+${new Date().toLocaleString()}
+
+--------------------------------
+SESSION ANALYTICS
+--------------------------------
+
+Total Interactions:
+${analytics.interactions}
+
+Session Time:
+${Math.floor(
+  analytics.totalTime / 1000
+)} seconds
+
+
+--------------------------------
+SCREEN VISITS
+--------------------------------
+`;
+
+  Object.entries(
+    analytics.screenVisits
+  ).forEach(([screen,count]) => {
+
+    report += `
+${screen}: ${count} visits
+`;
+
+  });
+
+  report += `
+
+--------------------------------
+BUTTON CLICKS
+--------------------------------
+`;
+
+  Object.entries(
+    analytics.buttonClicks
+  ).forEach(([button,count]) => {
+
+    report += `
+${button}: ${count} clicks
+`;
+
+  });
+
+  report += `
+
+--------------------------------
+USER FEEDBACK
+--------------------------------
+`;
+
+  feedbackEntries.forEach(entry => {
+
+    report += `
+
+Tester:
+${entry.tester}
+
+Screen:
+${entry.screen}
+
+Time:
+${entry.time}
+
+Feedback:
+${entry.feedback}
+
+------------------------------
+`;
+
+  });
+
+  const blob = new Blob(
+    [report],
+    { type:'text/plain' }
+  );
+
+  const a =
+    document.createElement('a');
+
+  a.href =
+    URL.createObjectURL(blob);
+
+  a.download =
+    'usability-report.txt';
+
+  a.click();
+
+  showStatus(
+    'Report exported'
+  );
+
+});
+
+
+document
+.getElementById('btn-save-feedback')
+.addEventListener('click', () => {
+
+  const name =
+    document
+    .getElementById('tester-name')
+    .value
+    .trim();
+
+  const feedback =
+    document
+    .getElementById('tester-feedback')
+    .value
+    .trim();
+
+  if(!name || !feedback){
+
+    showStatus(
+      'Enter name & feedback'
+    );
+
+    return;
+  }
+
+  feedbackEntries.push({
+
+    tester: name,
+    feedback: feedback,
+    screen: screens[currentScreen].name,
+    time: new Date()
+      .toLocaleTimeString()
+
+  });
+
+  document
+  .getElementById('tester-name')
+  .value = '';
+
+  document
+  .getElementById('tester-feedback')
+  .value = '';
+
+  renderFeedback();
+
+  showStatus(
+    'Feedback saved'
+  );
+
+});
+
+
 document
 .getElementById('btn-delete-screen')
 .addEventListener('click', () => {
@@ -1548,6 +1850,22 @@ document
 
   previewMode = !previewMode;
 
+  if(previewMode){
+
+  analytics.testStart =
+    Date.now();
+
+}
+else{
+
+  analytics.totalTime +=
+
+    Date.now() -
+    analytics.testStart;
+
+}
+
+
   document.body.classList.toggle(
   'preview',
   previewMode
@@ -1685,6 +2003,99 @@ function renderMoodBoard() {
   });
 
 }
+
+
+function renderFeedback(){
+
+  const list =
+    document.getElementById(
+      'feedback-list'
+    );
+
+  if(!list) return;
+
+  list.innerHTML = '';
+
+  feedbackEntries
+  .slice()
+  .reverse()
+  .forEach(entry => {
+
+    const div =
+      document.createElement('div');
+
+    div.style.padding = '8px';
+    div.style.border =
+      '1px solid var(--border)';
+    div.style.borderRadius = '8px';
+    div.style.fontSize = '11px';
+    div.style.background =
+      'var(--bg)';
+
+    div.innerHTML = `
+      <div style="
+        font-weight:600;
+        margin-bottom:4px;">
+        ${entry.tester}
+      </div>
+
+      <div style="
+        opacity:.7;
+        margin-bottom:6px;">
+        ${entry.screen}
+        •
+        ${entry.time}
+      </div>
+
+      <div>
+        ${entry.feedback}
+      </div>
+    `;
+
+    list.appendChild(div);
+
+  });
+
+}
+
+
+function renderAnalytics(){
+
+  document.getElementById(
+    'stat-screens'
+  ).textContent =
+
+    Object.keys(
+      analytics.screenVisits
+    ).length;
+
+  document.getElementById(
+    'stat-clicks'
+  ).textContent =
+
+    Object.values(
+      analytics.buttonClicks
+    ).reduce(
+      (a,b)=>a+b,
+      0
+    );
+
+  document.getElementById(
+    'stat-interactions'
+  ).textContent =
+
+    analytics.interactions;
+
+  document.getElementById(
+    'stat-time'
+  ).textContent =
+
+    Math.floor(
+      analytics.totalTime / 1000
+    ) + 's';
+
+}
+
 
 // Load default template
 function loadTemplate() {
